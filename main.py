@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 from PIL import Image, ImageTk
 import time
+from tkinter import messagebox
 
 
 class GUI:
@@ -34,6 +35,8 @@ class GUI:
         self.CW_arrow_img = ImageTk.PhotoImage(img3)
         img4 = Image.open("CCW_arrow.jpg").resize((self.arrow_size,self.arrow_size))
         self.CCW_arrow_img = ImageTk.PhotoImage(img4)
+        img5 = Image.open("black_pentago_piece.png").resize((100,100))
+        self.black_piece_img = ImageTk.PhotoImage(img5)
         
 
         self.mainboard.bind("<Button-1>", self.handle_click)
@@ -51,7 +54,7 @@ class GUI:
             self.mainboard.create_image(self.bordersize-self.arrow_size*0.5+col*(self.arrow_size+self.boardsize), self.bordersize+self.arrow_size*1.5+row*(self.boardsize-2*self.arrow_size), image=self.CW_arrow_img)
 
         
-        self.centerdistance = 80
+        self.centerdistance = 82
         
 
     def draw_piece(self, row, col, colour):
@@ -61,7 +64,7 @@ class GUI:
         if colour == 1:
             self.mainboard.create_image(x, y, image = self.white_piece_img, tags='piece')
         else:
-            self.mainboard.create_image(x, y, image = self.CW_arrow_img, tags='piece')
+            self.mainboard.create_image(x, y, image = self.black_piece_img, tags='piece')
     
     
         
@@ -100,23 +103,25 @@ class GUI:
 
     def handle_click(self, click):
         click_pos = self.pixel_to_position(click.x, click.y)
-        if ((self.game.turn == self.game.player1.colour or self.game.turn == self.game.player1.colour*2) and self.game.player1.type == 'human') or ((self.game.turn == self.game.player2.colour or self.game.turn == self.game.player2.colour*2) and self.game.player2.type == 'human'):
+        if not self.game.ended and ((self.game.turn == self.game.player1.colour or self.game.turn == self.game.player1.colour*2) and self.game.player1.type == 'human') or ((self.game.turn == self.game.player2.colour or self.game.turn == self.game.player2.colour*2) and self.game.player2.type == 'human'):
             if click_pos[2] == 'P' and abs(self.game.turn) == 1:
                 row, col = int(click_pos[0]), int(click_pos[1])
                 if self.game.board.grid[row][col] == 0:
                     self.game.board.place(row, col, self.game.turn)
                     self.draw_grid()
                     self.game.turn = 2*self.game.turn
-            if self.game.board.check_win(5)!= False:
-                print('game ended')
             elif click_pos[2] == 'R' and abs(self.game.turn) == 2:
                 self.game.board.rotate(click_pos[0]+4*click_pos[1])
                 self.rotate(click_pos[0]+4*click_pos[1])
                 self.draw_grid()
                 self.game.turn = self.game.turn/-2
+                if self.game.board.check_win(5)!= False and not self.game.ended:
+                    messagebox.showinfo("Game Ended", "White Won")
+                    self.game.ended = True
                 self.game.apply_move(self.game.turn)
-            if self.game.board.check_win(5)!= False:
-                print('game ended')
+                if self.game.board.check_win(5)!= False and not self.game.ended:
+                    messagebox.showinfo("Game Ended", "Black Won") 
+                    self.game.ended = True
     
         
         
@@ -128,6 +133,7 @@ class Game:
         self.player1 = HumanPlayer(1)
         self.player2 = ComputerPlayer(-1)
         self.gui = GUI(self)
+        self.ended = False
         self.gui.start_game()
         '''
         for i in range(10):
@@ -140,7 +146,7 @@ class Game:
     
     
     def apply_move(self, colour):
-        if self.player1.colour == colour and self.player1.type == 'computer':
+        if not self.ended and self.player1.colour == colour and self.player1.type == 'computer':
             move = self.player1.make_move(self.board)
             self.board.place(move[0], move[1], colour)
             self.gui.draw_grid()
@@ -152,7 +158,7 @@ class Game:
             if self.board.check_win(5)!= False:
                 print('game ended')
 
-        elif self.player2.colour == colour and self.player2.type == 'computer':
+        elif not self.ended and self.player2.colour == colour and self.player2.type == 'computer':
             move = self.player2.make_move(self.board)
             self.board.place(move[0], move[1], colour)
             self.gui.draw_grid()
